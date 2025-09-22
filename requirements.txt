@@ -1,0 +1,11 @@
+streamlit
+datasets
+langchain
+langchain_openai
+langchain_community
+langgraph
+langchain-google-community
+sentence-transformers
+faiss-cpu
+openai
+google-api-python-client
