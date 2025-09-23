@@ -56,7 +56,7 @@ def create_agent_graph(vector_store, nvidia_api_key, google_api_key, google_cse_
     # 2. Define the Model
     # We use ChatOpenAI pointed at the NVIDIA endpoint
     model = ChatOpenAI(
-        model="meta/llama3-70b-instruct",
+        model="openai/gpt-oss-120b",
         openai_api_key=nvidia_api_key,
         openai_api_base="https://integrate.api.nvidia.com/v1/ ",
         temperature=0.2
