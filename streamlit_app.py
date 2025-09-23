@@ -218,6 +218,9 @@ if "messages" not in st.session_state:
 if "is_processing" not in st.session_state:
     st.session_state.is_processing = False
 
+if "current_prompt" not in st.session_state:
+    st.session_state.current_prompt = None
+
 # --- STATUS DISPLAY ---
 if st.session_state.is_processing:
     st.markdown("""
@@ -265,24 +268,38 @@ for message in st.session_state.messages:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --- CHAT INPUT ---
-# Disable input when processing
-chat_input_key = f"chat_input_{len(st.session_state.messages)}"
-prompt = st.chat_input(
-    "💭 What would you like to research today?" if not st.session_state.is_processing else "🤖 AI is processing your request...",
-    disabled=st.session_state.is_processing,
-    key=chat_input_key
-)
+# Disable input when processing and use session state to track current prompt
+if not st.session_state.is_processing:
+    prompt = st.chat_input(
+        "💭 What would you like to research today?",
+        disabled=False,
+        key=f"chat_input_{len(st.session_state.messages)}"
+    )
+else:
+    # Show disabled input during processing
+    st.chat_input(
+        "🤖 AI is processing your request... Please wait",
+        disabled=True,
+        key=f"chat_input_disabled_{len(st.session_state.messages)}"
+    )
+    prompt = None
 
 # --- MESSAGE PROCESSING ---
 if prompt and not st.session_state.is_processing:
-    # Set processing state
+    # Store the current prompt and set processing state
+    st.session_state.current_prompt = prompt
     st.session_state.is_processing = True
+    st.rerun()
+
+# Process the message only if we're in processing state and have a stored prompt
+if st.session_state.is_processing and st.session_state.current_prompt:
+    current_prompt = st.session_state.current_prompt
     
     # Add user message to session state and display it
-    st.session_state.messages.append(HumanMessage(content=prompt))
+    st.session_state.messages.append(HumanMessage(content=current_prompt))
     
     with st.chat_message("human"):
-        st.markdown(prompt)
+        st.markdown(current_prompt)
     
     # Prepare the input for the agent
     inputs = {"messages": st.session_state.messages}
@@ -309,6 +326,21 @@ if prompt and not st.session_state.is_processing:
                         # Clean up any HTML tags in the response
                         new_content = value["messages"][-1].content
                         new_content = new_content.replace('<br>', '\n').replace('<br/>', '\n').replace('<br />', '\n')
+                        
+                        # Clean up table formatting issues
+                        new_content = new_content.replace('**Born**June', '**Born** | June')
+                        new_content = new_content.replace('**Education**B.Tech', '**Education** | B.Tech')
+                        new_content = new_content.replace('**Early Career**Worked', '**Early Career** | Worked')
+                        new_content = new_content.replace('**Google Tenure**•', '**Google Tenure** | •')
+                        new_content = new_content.replace('**CEO Roles**•', '**CEO Roles** | •')
+                        new_content = new_content.replace('**Notable Achievements**•', '**Notable Achievements** | •')
+                        new_content = new_content.replace('**Public Image**Known', '**Public Image** | Known')
+                        new_content = new_content.replace('**Personal Life**Married', '**Personal Life** | Married')
+                        new_content = new_content.replace('**Summary**Sundar', '**Summary** | Sundar')
+                        
+                        # Fix other common formatting issues
+                        new_content = new_content.replace('ItemDetails', '| Item | Details |\n|------|---------|')
+                        
                         full_response = new_content
                         
                         # Update with current response and cursor
@@ -326,8 +358,9 @@ if prompt and not st.session_state.is_processing:
             st.session_state.messages.append(AIMessage(content=error_message))
         
         finally:
-            # Reset processing state
+            # Reset processing state and clear the stored prompt
             st.session_state.is_processing = False
+            st.session_state.current_prompt = None
             # Force a rerun to update the UI
             st.rerun()
 
@@ -354,6 +387,7 @@ with st.sidebar:
     if st.button("🗑️ Clear Chat History"):
         st.session_state.messages = []
         st.session_state.is_processing = False
+        st.session_state.current_prompt = None
         st.rerun()
 
 # --- FOOTER ---
