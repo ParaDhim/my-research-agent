@@ -173,7 +173,7 @@ def call_web_tool(state):
     return {"messages": [ToolMessage(content=result, tool_call_id="web_search")]}
 
 @st.cache_resource
-def create_agent(vs):
+def create_agent(_vs):
     """Create and return the agent with the given vector store."""
     global vector_store
     vector_store = vs
