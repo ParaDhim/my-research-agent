@@ -71,8 +71,8 @@ You will need API keys from the following services:
 ### 2. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/your-repo-name.git
-cd your-repo-name
+git clone https://github.com/ParaDhim/my-research-agent.git
+cd my-research-agent
 ```
 
 ### 3. Set Up Environment Variables
