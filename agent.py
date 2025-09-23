@@ -176,7 +176,7 @@ def call_web_tool(state):
 def create_agent(_vs):
     """Create and return the agent with the given vector store."""
     global vector_store
-    vector_store = vs
+    vector_store = _vs
     
     # Build the workflow
     workflow = StateGraph(AgentState)
