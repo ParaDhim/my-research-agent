@@ -1,6 +1,6 @@
 # Multi-Tool AI Research Agent
 
-This project implements a sophisticated, conversational AI agent designed to assist with scientific research. The agent leverages the power of Large Language Models (LLMs) through the NVIDIA API and is built using the LangGraph framework to enable intelligent, tool-using capabilities.
+This project implements a sophisticated, conversational AI agent designed to assist with scientific research. The agent leverages the power of Large Language Models (LLMs) through the API and is built using the LangGraph framework to enable intelligent, tool-using capabilities.
 
 The agent can dynamically choose between querying a local, specialized knowledge base of scientific papers or searching the web for general, up-to-date information, all while maintaining conversational context. This project serves as a demonstration of building modern, modular, and robust AI systems.
 
@@ -40,7 +40,8 @@ The agent is built on LangGraph, which orchestrates the flow of logic as a state
 
 ### Code Flow Diagram
 
-```
+![Code Flow Diagram](https://github.com/user-attachments/assets/1a70bbb2-decf-4fae-8a08-2824036120e4)
+```mermaid
 graph TD
     A[Start: User Query] --> B{Agent Node: LLM Router};
     B --> C{Decision: Tool or Answer?};
@@ -52,7 +53,7 @@ graph TD
 ## Tech Stack
 
 * **Frameworks**: LangChain, LangGraph, Streamlit
-* **LLM & APIs**: NVIDIA NIM (meta/llama3-8b-instruct), Google Custom Search API
+* **LLM & APIs**: NIM (gpt-oss120b), Google Custom Search API
 * **Data & Retrieval**: Hugging Face Datasets, FAISS, Sentence-Transformers
 * **Core Language**: Python 3.10+
 
@@ -64,7 +65,7 @@ Follow these steps to set up and run the project locally.
 
 You will need API keys from the following services:
 
-* **NVIDIA API Key**: Available from the [NVIDIA AI Playground](https://build.nvidia.com/explore/discover).
+* **API Key**.
 * **Google Cloud API Key**: Available from the [Google Cloud Console](https://console.cloud.google.com/).
 * **Google Search Engine ID**: Create a Programmable Search Engine that searches the entire web [here](https://cse.google.com/cse/).
 
@@ -80,8 +81,8 @@ cd your-repo-name
 Create a file named `.env` in the root of the project directory and add your API keys:
 
 ```
-NVIDIA_API_KEY="nvapi-..."
-GOOGLE_API_KEY="AIzaSy..."
+API_KEY="..."
+GOOGLE_API_KEY="..."
 GOOGLE_CSE_ID="..."
 ```
 
