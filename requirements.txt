@@ -9,3 +9,5 @@ sentence-transformers
 faiss-cpu
 openai
 google-api-python-client
+transformers
+google-search-results

@@ -1,398 +1,216 @@
 import streamlit as st
-from langchain_core.messages import HumanMessage, AIMessage
-from agent import create_agent_graph
+import json
+import os
+from langchain_core.messages import HumanMessage, AIMessage, messages_to_dict, messages_from_dict
+from agent import create_agent
 from vector_store import get_vector_store
-import time
 
-# --- PAGE CONFIGURATION ---
+# Page config
 st.set_page_config(
-    page_title="🔬 RAG Research Agent", 
-    layout="wide",
+    page_title="Scientific Research Agent",
     page_icon="🔬",
-    initial_sidebar_state="collapsed"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# --- CUSTOM CSS STYLING ---
+# Custom CSS for better UI
 st.markdown("""
 <style>
-    /* Main container styling */
-    .main > div {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-    }
-    
-    /* Header styling */
-    .header-container {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 15px;
-        margin-bottom: 2rem;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        text-align: center;
-    }
-    
-    .header-title {
-        color: white;
-        font-size: 2.5rem;
-        font-weight: bold;
-        margin-bottom: 0.5rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-    
-    .header-subtitle {
-        color: rgba(255,255,255,0.9);
-        font-size: 1.2rem;
-        margin-bottom: 0;
-    }
-    
-    /* Chat container styling */
-    .chat-container {
-        background: white;
-        border-radius: 15px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        margin-bottom: 2rem;
-        border: 1px solid #e0e0e0;
-    }
-    
-    /* Message styling */
     .stChatMessage {
-        margin-bottom: 1rem !important;
-    }
-    
-    /* User message styling */
-    div[data-testid="chatAvatarIcon-human"] {
-        background-color: #667eea !important;
-    }
-    
-    /* AI message styling */
-    div[data-testid="chatAvatarIcon-ai"] {
-        background-color: #764ba2 !important;
-    }
-    
-    /* Input styling */
-    .stChatInput {
-        border-radius: 25px !important;
-        border: 2px solid #667eea !important;
-        box-shadow: 0 2px 10px rgba(102, 126, 234, 0.2) !important;
-    }
-    
-    /* Processing indicator */
-    .processing-indicator {
-        display: flex;
-        align-items: center;
-        justify-content: center;
         padding: 1rem;
-        background: linear-gradient(90deg, #f0f2ff, #e8ebff, #f0f2ff);
-        background-size: 200% 100%;
-        animation: shimmer 2s infinite;
-        border-radius: 10px;
-        margin: 1rem 0;
-        color: #667eea;
-        font-weight: 500;
+        border-radius: 0.5rem;
+        margin: 0.5rem 0;
     }
-    
-    @keyframes shimmer {
-        0% { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
+    .stSidebar {
+        background-color: #f0f2f6;
     }
-    
-    /* Status indicators */
-    .status-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem 1rem;
-        background: #f8f9ff;
-        border-radius: 10px;
-        margin-bottom: 1rem;
-        border-left: 4px solid #667eea;
-    }
-    
-    .status-text {
-        color: #667eea;
-        font-weight: 500;
-        font-size: 0.9rem;
-    }
-    
-    /* Welcome message */
-    .welcome-card {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        padding: 2rem;
-        border-radius: 15px;
+    .main-header {
         text-align: center;
+        padding: 1rem 0;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     }
-    
-    .welcome-title {
-        color: #333;
-        font-size: 1.5rem;
-        font-weight: bold;
-        margin-bottom: 1rem;
+    .feature-box {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+        margin: 0.5rem 0;
     }
-    
-    .welcome-text {
-        color: #666;
-        font-size: 1.1rem;
-        line-height: 1.6;
-        margin-bottom: 1.5rem;
-    }
-    
-    .feature-tags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        justify-content: center;
-    }
-    
-    .feature-tag {
-        background: white;
-        color: #667eea;
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        font-weight: 500;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    
-    /* Typing indicator */
-    .typing-indicator {
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #667eea;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    /* Hide Streamlit elements */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    .stDeployButton {display:none;}
-    
 </style>
 """, unsafe_allow_html=True)
 
-# --- HEADER ---
-st.markdown("""
-<div class="header-container">
-    <div class="header-title">🔬 RAG Research Agent</div>
-    <div class="header-subtitle">Advanced AI-powered research assistant for scientific papers</div>
-</div>
-""", unsafe_allow_html=True)
+def initialize_session_state():
+    """Initialize session state variables"""
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
+    if 'agent_initialized' not in st.session_state:
+        st.session_state.agent_initialized = False
+    if 'agent' not in st.session_state:
+        st.session_state.agent = None
 
-# --- AGENT AND VECTOR STORE INITIALIZATION ---
-@st.cache_resource
-def setup_agent():
-    """Load secrets, initialize vector store, and create the agent graph."""
-    try:
-        # Load API keys from Streamlit secrets
-        nvidia_api_key = st.secrets["NVIDIA_API_KEY"]
-        google_api_key = st.secrets["GOOGLE_API_KEY"]
-        google_cse_id = st.secrets["GOOGLE_CSE_ID"]
-        
-        vector_store = get_vector_store()
-        
-        # Create the agent graph
-        app = create_agent_graph(vector_store, nvidia_api_key, google_api_key, google_cse_id)
-        return app
-    except (KeyError, FileNotFoundError) as e:
-        st.error(f"🚫 Could not load API keys from secrets. Please ensure secrets.toml is configured correctly. Error: {e}")
-        st.stop()
+def save_chat_history():
+    """Save chat history to session state and file"""
+    if st.session_state.messages:
+        try:
+            dict_messages = messages_to_dict(st.session_state.messages)
+            # Store in session state for persistence
+            st.session_state.chat_history = dict_messages
+        except Exception as e:
+            st.error(f"Error saving chat history: {e}")
 
-# Initialize agent
-with st.spinner("🔧 Initializing AI Agent..."):
-    app = setup_agent()
+def load_chat_history():
+    """Load chat history from session state"""
+    if 'chat_history' in st.session_state and st.session_state.chat_history:
+        try:
+            st.session_state.messages = messages_from_dict(st.session_state.chat_history)
+            return True
+        except Exception as e:
+            st.error(f"Error loading chat history: {e}")
+            return False
+    return False
 
-# --- SESSION STATE INITIALIZATION ---
-if "messages" not in st.session_state:
+def clear_chat():
+    """Clear chat history"""
     st.session_state.messages = []
+    if 'chat_history' in st.session_state:
+        del st.session_state.chat_history
+    st.success("Chat cleared!")
 
-if "is_processing" not in st.session_state:
-    st.session_state.is_processing = False
-
-if "current_prompt" not in st.session_state:
-    st.session_state.current_prompt = None
-
-# --- STATUS DISPLAY ---
-if st.session_state.is_processing:
-    st.markdown("""
-    <div class="status-container">
-        <span class="status-text">🤖 AI is thinking...</span>
-        <div class="typing-indicator"></div>
-    </div>
-    """, unsafe_allow_html=True)
-else:
-    st.markdown("""
-    <div class="status-container">
-        <span class="status-text">✅ Ready to help you with your research</span>
-        <span style="color: #28a745;">●</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-# --- WELCOME MESSAGE ---
-if not st.session_state.messages:
-    st.markdown("""
-    <div class="welcome-card">
-        <div class="welcome-title">👋 Welcome to Your Research Assistant</div>
-        <div class="welcome-text">
-            I'm here to help you explore scientific papers and research on various topics. 
-            Ask me anything about complex research areas, and I'll provide detailed, well-sourced answers.
-        </div>
-        <div class="feature-tags">
-            <span class="feature-tag">📊 Data Analysis</span>
-            <span class="feature-tag">📚 Literature Review</span>
-            <span class="feature-tag">🔍 Research Insights</span>
-            <span class="feature-tag">📈 Graph Theory</span>
-            <span class="feature-tag">🧠 AI-Powered</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# --- CHAT HISTORY DISPLAY ---
-st.markdown('<div class="chat-container">', unsafe_allow_html=True)
-
-for message in st.session_state.messages:
-    with st.chat_message(message.type):
-        # Clean up any remaining HTML tags in the content
-        clean_content = message.content.replace('<br>', '\n').replace('<br/>', '\n').replace('<br />', '\n')
-        st.markdown(clean_content)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- CHAT INPUT ---
-# Disable input when processing and use session state to track current prompt
-if not st.session_state.is_processing:
-    prompt = st.chat_input(
-        "💭 What would you like to research today?",
-        disabled=False,
-        key=f"chat_input_{len(st.session_state.messages)}"
-    )
-else:
-    # Show disabled input during processing
-    st.chat_input(
-        "🤖 AI is processing your request... Please wait",
-        disabled=True,
-        key=f"chat_input_disabled_{len(st.session_state.messages)}"
-    )
-    prompt = None
-
-# --- MESSAGE PROCESSING ---
-if prompt and not st.session_state.is_processing:
-    # Store the current prompt and set processing state
-    st.session_state.current_prompt = prompt
-    st.session_state.is_processing = True
-    st.rerun()
-
-# Process the message only if we're in processing state and have a stored prompt
-if st.session_state.is_processing and st.session_state.current_prompt:
-    current_prompt = st.session_state.current_prompt
+def main():
+    initialize_session_state()
     
-    # Add user message to session state and display it
-    st.session_state.messages.append(HumanMessage(content=current_prompt))
-    
-    with st.chat_message("human"):
-        st.markdown(current_prompt)
-    
-    # Prepare the input for the agent
-    inputs = {"messages": st.session_state.messages}
-    
-    # Display AI response with typing indicator
-    with st.chat_message("ai"):
-        response_placeholder = st.empty()
+    # Sidebar
+    with st.sidebar:
+        st.markdown('<div class="main-header"><h2>🔬 Research Agent</h2></div>', 
+                   unsafe_allow_html=True)
         
-        # Show processing indicator
-        response_placeholder.markdown("""
-        <div class="processing-indicator">
-            <div class="typing-indicator" style="margin-right: 10px;"></div>
-            Analyzing your question and searching through research papers...
+        st.markdown("""
+        <div class="feature-box">
+        Ask questions about scientific papers on graph theory, sparsity, 
+        and the pebble game, or any general knowledge questions!
         </div>
         """, unsafe_allow_html=True)
         
-        full_response = ""
+        # Control buttons
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🗑️ Clear Chat", type="secondary", use_container_width=True):
+                clear_chat()
+                st.rerun()
         
-        try:
-            # Stream the agent's response
-            for event in app.stream(inputs):
-                for value in event.values():
-                    if isinstance(value["messages"][-1], AIMessage):
-                        # Clean up any HTML tags in the response
-                        new_content = value["messages"][-1].content
-                        new_content = new_content.replace('<br>', '\n').replace('<br/>', '\n').replace('<br />', '\n')
-                        
-                        # Clean up table formatting issues
-                        new_content = new_content.replace('**Born**June', '**Born** | June')
-                        new_content = new_content.replace('**Education**B.Tech', '**Education** | B.Tech')
-                        new_content = new_content.replace('**Early Career**Worked', '**Early Career** | Worked')
-                        new_content = new_content.replace('**Google Tenure**•', '**Google Tenure** | •')
-                        new_content = new_content.replace('**CEO Roles**•', '**CEO Roles** | •')
-                        new_content = new_content.replace('**Notable Achievements**•', '**Notable Achievements** | •')
-                        new_content = new_content.replace('**Public Image**Known', '**Public Image** | Known')
-                        new_content = new_content.replace('**Personal Life**Married', '**Personal Life** | Married')
-                        new_content = new_content.replace('**Summary**Sundar', '**Summary** | Sundar')
-                        
-                        # Fix other common formatting issues
-                        new_content = new_content.replace('ItemDetails', '| Item | Details |\n|------|---------|')
-                        
-                        full_response = new_content
-                        
-                        # Update with current response and cursor
-                        response_placeholder.markdown(full_response + " ▌")
-            
-            # Final response without cursor
-            response_placeholder.markdown(full_response)
-            
-            # Add the final AI response to the session state
-            st.session_state.messages.append(AIMessage(content=full_response))
-            
-        except Exception as e:
-            error_message = f"🚫 Sorry, I encountered an error while processing your request: {str(e)}"
-            response_placeholder.markdown(error_message)
-            st.session_state.messages.append(AIMessage(content=error_message))
+        with col2:
+            if st.button("📁 Load History", type="secondary", use_container_width=True):
+                if load_chat_history():
+                    st.success("History loaded!")
+                    st.rerun()
+                else:
+                    st.warning("No history found!")
         
-        finally:
-            # Reset processing state and clear the stored prompt
-            st.session_state.is_processing = False
-            st.session_state.current_prompt = None
-            # Force a rerun to update the UI
-            st.rerun()
+        st.markdown("---")
+        
+        # Features section
+        st.markdown("### ✨ Features")
+        features = [
+            "🔬 Scientific paper Q&A",
+            "🌐 Web search capabilities", 
+            "💾 Chat history persistence",
+            "⚡ Real-time responses",
+            "🎯 Context-aware answers"
+        ]
+        
+        for feature in features:
+            st.markdown(f"• {feature}")
+        
+        st.markdown("---")
+        
+        # Status section
+        st.markdown("### 📊 Status")
+        if st.session_state.agent_initialized:
+            st.success("✅ Agent Ready")
+            st.info(f"💬 Messages: {len(st.session_state.messages)}")
+        else:
+            st.warning("⏳ Initializing...")
 
-# --- SIDEBAR WITH ADDITIONAL INFO ---
-with st.sidebar:
-    st.markdown("### 📋 Quick Help")
+    # Main interface
+    st.markdown('<div class="main-header"><h1>🔬 Scientific Research Agent</h1></div>', 
+                unsafe_allow_html=True)
+
+    # Initialize agent if not done
+    if not st.session_state.agent_initialized:
+        with st.spinner("🚀 Initializing agent and loading scientific papers..."):
+            try:
+                vector_store = get_vector_store()
+                st.session_state.agent = create_agent(vector_store)
+                st.session_state.agent_initialized = True
+                st.success("✅ Agent initialized successfully!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Failed to initialize agent: {str(e)}")
+                st.stop()
+
+    # Display chat messages
+    chat_container = st.container()
+    with chat_container:
+        for i, message in enumerate(st.session_state.messages):
+            if isinstance(message, HumanMessage):
+                with st.chat_message("user", avatar="👤"):
+                    st.markdown(message.content)
+            elif isinstance(message, AIMessage):
+                with st.chat_message("assistant", avatar="🔬"):
+                    st.markdown(message.content)
+
+    # Chat input
+    if prompt := st.chat_input("Ask me anything about scientific papers or general knowledge...", 
+                              disabled=not st.session_state.agent_initialized):
+        
+        # Add user message
+        st.session_state.messages.append(HumanMessage(content=prompt))
+        
+        # Display user message
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(prompt)
+        
+        # Generate and display assistant response
+        with st.chat_message("assistant", avatar="🔬"):
+            with st.spinner("🤔 Thinking..."):
+                try:
+                    response_placeholder = st.empty()
+                    full_response = ""
+                    
+                    # Stream the response
+                    for event in st.session_state.agent.stream({"messages": st.session_state.messages}):
+                        for value in event.values():
+                            if (isinstance(value.get("messages", [{}])[-1], AIMessage) and 
+                                value["messages"][-1].content):
+                                chunk = value["messages"][-1].content
+                                full_response += chunk
+                                # Update with typing indicator
+                                response_placeholder.markdown(full_response + "▌")
+                    
+                    # Final response without cursor
+                    response_placeholder.markdown(full_response)
+                    
+                    # Add to chat history
+                    if full_response:
+                        st.session_state.messages.append(AIMessage(content=full_response))
+                        save_chat_history()
+                    
+                except Exception as e:
+                    st.error(f"❌ Error generating response: {str(e)}")
+                    # Remove the failed user message
+                    st.session_state.messages.pop()
+
+    # Footer
+    st.markdown("---")
     st.markdown("""
-    **💡 Tips for better results:**
-    - Be specific in your questions
-    - Ask about research methodologies
-    - Request paper summaries
-    - Inquire about data analysis techniques
-    
-    **🔍 Example questions:**
-    - "Explain (k,ℓ)-sparse graphs"
-    - "What is the pebble game algorithm?"
-    - "Compare different graph theory approaches"
-    """)
-    
-    st.markdown("### 📊 Session Stats")
-    st.metric("Messages", len(st.session_state.messages))
-    st.metric("Status", "🟢 Active" if not st.session_state.is_processing else "🟡 Processing")
-    
-    if st.button("🗑️ Clear Chat History"):
-        st.session_state.messages = []
-        st.session_state.is_processing = False
-        st.session_state.current_prompt = None
-        st.rerun()
+    <div style='text-align: center; color: #666; padding: 1rem;'>
+        <p><em>🚀 Powered by NVIDIA API, Google Search, and FAISS Vector Store</em></p>
+        <p><small>Built using Streamlit & LangChain</small></p>
+    </div>
+    """, unsafe_allow_html=True)
 
-# --- FOOTER ---
-st.markdown("""
-<div style="text-align: center; padding: 2rem; color: #666; font-size: 0.9rem;">
-    Powered by advanced AI • Built with Streamlit • Research made simple
-</div>
-""", unsafe_allow_html=True)
+if __name__ == "__main__":
+    main()
