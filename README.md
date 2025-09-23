@@ -49,6 +49,13 @@ graph TD
     C -- Final Answer --> E[End: Display Response];
 ```
 
+
+## Live Demo
+
+You can try out the application at: [https://my-research-agent-4ecs8tthjtvfb4tym6sq4b.streamlit.app](https://my-research-agent-4ecs8tthjtvfb4tym6sq4b.streamlit.app)
+
+*Note: The demo may not always be available depending on server status.*
+
 ## Tech Stack
 
 * **Frameworks**: LangChain, LangGraph, Streamlit
