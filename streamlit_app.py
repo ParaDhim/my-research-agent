@@ -4,6 +4,7 @@ import os
 from langchain_core.messages import HumanMessage, AIMessage, messages_to_dict, messages_from_dict
 from agent import create_agent
 from vector_store import get_vector_store
+from fine_tune_model import show_model_training_interface, summarizer_instance
 
 # Page config
 st.set_page_config(
@@ -301,11 +302,17 @@ def main():
         
         st.markdown("---")
         
+        # Model Training Interface
+        show_model_training_interface()
+        
+        st.markdown("---")
+        
         # Features section
         st.markdown('<div class="section-header">✨ Features</div>', unsafe_allow_html=True)
         features = [
             "🔬 Scientific paper Q&A",
             "🌐 Web search capabilities", 
+            "📝 AI-powered summarization",
             "💾 Chat history persistence",
             "⚡ Real-time responses",
             "🎯 Context-aware answers"
@@ -321,12 +328,24 @@ def main():
         if st.session_state.agent_initialized:
             st.markdown('<div class="status-success">✅ Agent Ready</div>', unsafe_allow_html=True)
             st.markdown(f'<div class="status-info">💬 Messages: {len(st.session_state.messages)}</div>', unsafe_allow_html=True)
+            
+            # Check if fine-tuned model is loaded
+            if summarizer_instance.summarizer:
+                st.markdown('<div class="status-success">🤖 T5 Model Loaded</div>', unsafe_allow_html=True)
+            else:
+                st.markdown('<div class="status-warning">🤖 T5 Model Not Loaded</div>', unsafe_allow_html=True)
         else:
             st.markdown('<div class="status-warning">⏳ Initializing...</div>', unsafe_allow_html=True)
 
     # Main interface
-    st.markdown('<div class="main-header"><h1>🔬 Scientific Research Agent</h1></div>', 
-                unsafe_allow_html=True)
+    st.markdown("""
+    <div class="main-header">
+        <h1>🔬 Scientific Research Agent</h1>
+        <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">
+            Enhanced with AI-powered summarization using fine-tuned T5 model
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Initialize agent if not done
     if not st.session_state.agent_initialized:
@@ -335,11 +354,29 @@ def main():
                 vector_store = get_vector_store()
                 st.session_state.agent = create_agent(vector_store)
                 st.session_state.agent_initialized = True
+                
+                # Try to load the fine-tuned model
+                summarizer_instance.load_fine_tuned_model()
+                
                 st.success("✅ Agent initialized successfully!")
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Failed to initialize agent: {str(e)}")
                 st.stop()
+
+    # Display example queries if no messages
+    if not st.session_state.messages:
+        st.markdown("""
+        <div class="feature-box">
+        <h3 style="color: #667eea; margin-top: 0;">💡 Try these example queries:</h3>
+        <ul style="color: #cbd5e0; margin-bottom: 0;">
+            <li><strong>Paper Q&A:</strong> "What is graph theory sparsity?"</li>
+            <li><strong>Summarization:</strong> "Summarize the latest paper on pebble games"</li>
+            <li><strong>Web Search:</strong> "What are the current trends in AI research?"</li>
+            <li><strong>General:</strong> "Explain machine learning algorithms"</li>
+        </ul>
+        </div>
+        """, unsafe_allow_html=True)
 
     # Display chat messages
     chat_container = st.container()
@@ -353,7 +390,7 @@ def main():
                     st.markdown(message.content)
 
     # Chat input
-    if prompt := st.chat_input("Ask me anything about scientific papers or general knowledge...", 
+    if prompt := st.chat_input("Ask me anything about scientific papers, request summaries, or general knowledge...", 
                               disabled=not st.session_state.agent_initialized):
         
         # Add user message
@@ -397,7 +434,8 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div class="footer">
-        <p><small>Built using Streamlit & LangChain</small></p>
+        <p><small>Built with Streamlit, LangChain & Fine-tuned T5 Model</small></p>
+        <p><em>Enhanced AI Research Assistant with Custom Summarization</em></p>
     </div>
     """, unsafe_allow_html=True)
 

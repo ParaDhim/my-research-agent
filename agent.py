@@ -8,6 +8,7 @@ from langchain_google_community.search import GoogleSearchAPIWrapper
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
+from fine_tune_model import summarizer_instance
 
 # Load API keys from Streamlit secrets
 @st.cache_data
@@ -104,6 +105,26 @@ def web_search_tool(query: str) -> str:
     except Exception as e:
         return f"Error performing web search: {str(e)}"
 
+@tool
+def summarize_paper_tool(text: str) -> str:
+    """
+    Summarizes scientific paper text using a fine-tuned T5 model. 
+    Use this when the user asks to summarize a paper or generate an abstract.
+    """
+    try:
+        # Load the fine-tuned model if not already loaded
+        if not summarizer_instance.summarizer:
+            model_loaded = summarizer_instance.load_fine_tuned_model()
+            if not model_loaded:
+                return "Fine-tuned summarization model is not available. Please train the model first using the sidebar options."
+        
+        # Generate summary
+        summary = summarizer_instance.summarize_text(text)
+        return f"AI-Generated Summary:\n\n{summary}\n\n(Generated using fine-tuned T5 model)"
+        
+    except Exception as e:
+        return f"Error generating summary: {str(e)}"
+
 # Define the AgentState
 class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
@@ -147,6 +168,11 @@ def should_continue(state):
     if isinstance(last_message, HumanMessage):
         content = last_message.content.lower()
         
+        # Check for summarization requests
+        summarize_keywords = ['summarize', 'summary', 'abstract', 'tldr', 'brief', 'condense']
+        if any(keyword in content for keyword in summarize_keywords):
+            return "use_summarize_tool"
+        
         # Check for scientific paper related queries
         paper_keywords = ['paper', 'research', 'study', 'graph theory', 'sparsity', 'pebble game', 'algorithm']
         web_keywords = ['current', 'latest', 'news', 'what is', 'define', 'today']
@@ -172,6 +198,29 @@ def call_web_tool(state):
     result = web_search_tool.invoke(query)
     return {"messages": [ToolMessage(content=result, tool_call_id="web_search")]}
 
+def call_summarize_tool(state):
+    """Call the summarization tool"""
+    query = state['messages'][-1].content
+    
+    # Extract text to summarize (this is a simple implementation)
+    # In practice, you might want more sophisticated text extraction
+    text_to_summarize = query
+    
+    # If the user is asking to summarize something specific, try to get it from context
+    # This is a simple heuristic - you might want to improve this logic
+    if "summarize" in query.lower():
+        # Try to get the most recent paper content from vector store
+        try:
+            retriever = vector_store.as_retriever(search_kwargs={'k': 1})
+            context_docs = retriever.get_relevant_documents(query)
+            if context_docs:
+                text_to_summarize = context_docs[0].page_content
+        except:
+            pass
+    
+    result = summarize_paper_tool.invoke(text_to_summarize)
+    return {"messages": [ToolMessage(content=result, tool_call_id="summarize")]}
+
 @st.cache_resource
 def create_agent(_vs):
     """Create and return the agent with the given vector store."""
@@ -185,6 +234,7 @@ def create_agent(_vs):
     workflow.add_node("agent", call_model)
     workflow.add_node("paper_tool", call_paper_tool)
     workflow.add_node("web_tool", call_web_tool)
+    workflow.add_node("summarize_tool", call_summarize_tool)
     
     # Set entry point
     workflow.set_entry_point("agent")
@@ -195,7 +245,8 @@ def create_agent(_vs):
         should_continue,
         {
             "use_paper_tool": "paper_tool",
-            "use_web_tool": "web_tool", 
+            "use_web_tool": "web_tool",
+            "use_summarize_tool": "summarize_tool",
             "end": END
         }
     )
@@ -203,6 +254,7 @@ def create_agent(_vs):
     # Add edges back to agent after tool use
     workflow.add_edge("paper_tool", "agent")
     workflow.add_edge("web_tool", "agent")
+    workflow.add_edge("summarize_tool", "agent")
     
     # Compile the workflow
     app = workflow.compile()

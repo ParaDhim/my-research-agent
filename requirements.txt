@@ -1,13 +1,33 @@
-streamlit
-datasets
 langchain
 langchain_openai
-langchain_community
-langgraph
-langchain-google-community
-sentence-transformers
-faiss-cpu
-openai
 google-api-python-client
-transformers
+# Core Streamlit and web framework
+streamlit
+
+# LangChain and related
+langchain
+langchain-core
+langchain-community
+langgraph
+
+# Transformers and ML
+transformers[torch]
+torch
+datasets
+accelerate
+sentence-transformers
+
+# Vector store and embeddings
+faiss-cpu
+
+# Google search
 google-search-results
+langchain-google-community
+
+# OpenAI API client
+openai
+
+# Other utilities
+numpy
+pandas
+regex
