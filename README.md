@@ -40,7 +40,6 @@ The agent is built on LangGraph, which orchestrates the flow of logic as a state
 
 ### Code Flow Diagram
 
-![Code Flow Diagram](https://github.com/user-attachments/assets/1a70bbb2-decf-4fae-8a08-2824036120e4)
 ```mermaid
 graph TD
     A[Start: User Query] --> B{Agent Node: LLM Router};
