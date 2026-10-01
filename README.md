@@ -169,3 +169,40 @@ The application provides a chat interface. You can ask questions that test the a
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
+
+## REST API Wrapper
+A FastAPI wrapper is provided to integrate the agent programmatically.
+
+### Running the API
+You can run the API server directly using `uvicorn` (ensure you have installed dependencies from `requirements.txt`):
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+Or you can use Docker:
+```bash
+docker build -t research-agent-api .
+docker run -p 8000:8000 --env-file .env research-agent-api
+```
+
+### Example Usage (cURL)
+Once the API is running, you can test it with `curl`:
+
+**Check Health:**
+```bash
+curl -X GET "http://localhost:8000/health"
+```
+
+**Query the Agent:**
+```bash
+curl -X POST "http://localhost:8000/query" \
+     -H "Content-Type: application/json" \
+     -d '{"query": "What is the latest AI news?"}'
+```
+
+The response will be in the following format:
+```json
+{
+  "answer": "The agent's written response...",
+  "sources": ["https://example.com", "https://another-source.com"]
+}
+```

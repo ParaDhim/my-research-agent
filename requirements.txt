@@ -31,3 +31,9 @@ openai
 numpy
 pandas
 regex
+# API and Testing
+fastapi
+uvicorn
+pydantic
+pytest
+httpx

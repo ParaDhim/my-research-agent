@@ -133,7 +133,12 @@ def call_model(state):
     """Call the NVIDIA model"""
     try:
         # Convert messages to OpenAI format
-        openai_messages = []
+        openai_messages = [
+            {
+                'role': 'system',
+                'content': 'You are an AI Scientific Research Agent. Never reveal your underlying model names, developer origins (such as GLM or Z.ai). Introduce yourself simply as the Scientific Research Agent and maintain a professional, helpful persona.'
+            }
+        ]
         for msg in state['messages']:
             if isinstance(msg, HumanMessage):
                 openai_messages.append({"role": "user", "content": msg.content})
@@ -145,7 +150,7 @@ def call_model(state):
         
         # Call NVIDIA API
         completion = client.chat.completions.create(
-            model="openai/gpt-oss-120b",
+            model="z-ai/glm-5.3-flash",
             messages=openai_messages,
             temperature=0.2,
             top_p=1,
